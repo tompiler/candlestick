@@ -8,6 +8,18 @@ d3.csv("FTSE.csv").then(function(prices) {
 	}
 });
 
+function keyToArray(arr, key){
+	var dateFormat = d3.timeParse("%Y-%m-%d");
+	var output = []
+	for (i = 0; i < arr.length; i++){
+		output.push(dateFormat(arr[i]["Date"]));
+	}
+	return output;
+}
+
+
+console.log(_.map(data, 'Date'));
+
 // Draw a candlestick chart based on passed prices
 function drawChart() {
 
@@ -28,7 +40,7 @@ function drawChart() {
 		var xmin = d3.min(data.map(function(r){ return dateFormat(r.Date).getTime(); }));
 		var xmax = d3.max(data.map(function(r){ return dateFormat(r.Date).getTime(); }));
 		//var xScale = d3.scaleLinear().domain([xmin, xmax]).range([0, w]).nice();
-		var xScale = d3.scaleBand().domain(d3.timeDay.range(new Date(xmin), d3.timeDay.offset(new Date(xmax), 1)).filter(d => d.getDay() !== 0 && d.getDay() !== 6))
+		var xScale = d3.scaleBand().domain(keyToArray(data, "Date"))
 					   .range([margin.left, w])
 					   .padding(0.2)
 					   
