@@ -2,8 +2,8 @@
 var data = []
 d3.csv("FTSE.csv").then(function(prices) {
 	for (var i = 0; i < prices.length; i++) {
-		//var dateFormat = d3.timeParse("%Y-%m-%d");
-		//prices[i]['Date'] = dateFormat(prices[i]['Date'])
+		var dateFormat = d3.timeParse("%Y-%m-%d");
+		prices[i]['Date'] = dateFormat(prices[i]['Date'])
 		data.push(prices[i]);
 	}
 });
@@ -17,14 +17,11 @@ function keyToArray(arr, key){
 	return output;
 }
 
-
-console.log(_.map(data, 'Date'));
-
 // Draw a candlestick chart based on passed prices
 function drawChart() {
 
 	d3.csv("FTSE.csv").then(function(prices) {
-		console.log(prices);
+
 		var margin = {top: 15, right: 65, bottom: 25, left: 50},
 		w = 1190 - margin.left - margin.right,
 		h = 680 - margin.top - margin.bottom;
@@ -36,11 +33,10 @@ function drawChart() {
 					.attr("transform", "translate(" +margin.left+ "," +margin.top+ ")");
 		
 		// x axis
-		var dateFormat = d3.timeParse("%Y-%m-%d");
-		var xmin = d3.min(data.map(function(r){ return dateFormat(r.Date).getTime(); }));
-		var xmax = d3.max(data.map(function(r){ return dateFormat(r.Date).getTime(); }));
-		//var xScale = d3.scaleLinear().domain([xmin, xmax]).range([0, w]).nice();
-		var xScale = d3.scaleBand().domain(keyToArray(data, "Date"))
+		var xmin = d3.min(data.map(function(r){ return r.Date.getTime(); }));
+		var xmax = d3.max(data.map(function(r){ return r.Date.getTime(); }));
+
+		var xScale = d3.scaleBand().domain(_.map(data, 'Date'))
 					   .range([margin.left, w])
 					   .padding(0.2)
 					   
@@ -56,7 +52,6 @@ function drawChart() {
 		// y axis
 		var ymin = d3.min(data.map(function(r){return r.Low;}));
 		var ymax = d3.max(data.map(function(r){return r.High;}));
-		console.log(Math.round((ymax - ymin)/100));
 		var yScale = d3.scaleLinear().domain([ymin, ymax]).range([h, 0]).nice();
 		var yAxis = d3.axisLeft()
 					  .scale(yScale)
@@ -72,7 +67,7 @@ function drawChart() {
 		   .enter()
 		   .append("rect")
 		   .attr("x", function(d){
-				return xScale(dateFormat(d.Date));
+				return xScale(d.Date);
 		   })
 		   .attr("y", function(d){return yScale(Math.max(d.Open, d.Close));})
 		   .attr("width", function(d){return 0.5*w/data.length;})
@@ -85,8 +80,8 @@ function drawChart() {
 		   .enter()
 		   .append("line")
 		   .attr("class", "stem")
-		   .attr("x1", function(d){ return xScale(dateFormat(d.Date)) + 0.25*w/data.length; })
-		   .attr("x2", function(d){ return xScale(dateFormat(d.Date)) + 0.25*w/data.length; })
+		   .attr("x1", function(d){ return xScale(d.Date) + 0.25*w/data.length; })
+		   .attr("x2", function(d){ return xScale(d.Date) + 0.25*w/data.length; })
 		   .attr("y1", function(d){return yScale(d.High);})
 		   .attr("y2", function(d){return yScale(d.Low);})
 		   .attr("stroke", function(d){return d.Open > d.Close ? "red" : "green"; })
