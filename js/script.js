@@ -1,26 +1,13 @@
 
-var data = []
-d3.csv("FTSE.csv").then(function(prices) {
-	for (var i = 0; i < prices.length; i++) {
-		var dateFormat = d3.timeParse("%Y-%m-%d");
-		prices[i]['Date'] = dateFormat(prices[i]['Date'])
-		data.push(prices[i]);
-	}
-});
-
-function keyToArray(arr, key){
-	var dateFormat = d3.timeParse("%Y-%m-%d");
-	var output = []
-	for (i = 0; i < arr.length; i++){
-		output.push(dateFormat(arr[i]["Date"]));
-	}
-	return output;
-}
-
 // Draw a candlestick chart based on passed prices
 function drawChart() {
 
 	d3.csv("FTSE.csv").then(function(prices) {
+
+		for (var i = 0; i < prices.length; i++) {
+			var dateFormat = d3.timeParse("%Y-%m-%d");
+			prices[i]['Date'] = dateFormat(prices[i]['Date'])
+		}
 
 		var margin = {top: 15, right: 65, bottom: 25, left: 50},
 		w = 1190 - margin.left - margin.right,
@@ -33,10 +20,10 @@ function drawChart() {
 					.attr("transform", "translate(" +margin.left+ "," +margin.top+ ")");
 		
 		// x axis
-		var xmin = d3.min(data.map(function(r){ return r.Date.getTime(); }));
-		var xmax = d3.max(data.map(function(r){ return r.Date.getTime(); }));
+		var xmin = d3.min(prices.map(function(r){ return r.Date.getTime(); }));
+		var xmax = d3.max(prices.map(function(r){ return r.Date.getTime(); }));
 
-		var xScale = d3.scaleBand().domain(_.map(data, 'Date'))
+		var xScale = d3.scaleBand().domain(_.map(prices, 'Date'))
 					   .range([margin.left, w])
 					   .padding(0.2)
 					   
@@ -50,8 +37,8 @@ function drawChart() {
 		   .call(xAxis);
 		
 		// y axis
-		var ymin = d3.min(data.map(function(r){return r.Low;}));
-		var ymax = d3.max(data.map(function(r){return r.High;}));
+		var ymin = d3.min(prices.map(function(r){return r.Low;}));
+		var ymax = d3.max(prices.map(function(r){return r.High;}));
 		var yScale = d3.scaleLinear().domain([ymin, ymax]).range([h, 0]).nice();
 		var yAxis = d3.axisLeft()
 					  .scale(yScale)
@@ -63,25 +50,25 @@ function drawChart() {
 		
 		// draw rectangles
 		svg.selectAll("rect")
-		   .data(data)
+		   .data(prices)
 		   .enter()
 		   .append("rect")
 		   .attr("x", function(d){
 				return xScale(d.Date);
 		   })
 		   .attr("y", function(d){return yScale(Math.max(d.Open, d.Close));})
-		   .attr("width", function(d){return 0.5*w/data.length;})
+		   .attr("width", function(d){return 0.5*w/prices.length;})
 		   .attr("height", function(d){return yScale(Math.min(d.Open, d.Close))-yScale(Math.max(d.Open, d.Close	));})
 		   .attr("fill", function(d){return d.Open>d.Close ? "red" : "green"});
 		
 		// draw high and low
 		svg.selectAll("g.line")
-		   .data(data)
+		   .data(prices)
 		   .enter()
 		   .append("line")
 		   .attr("class", "stem")
-		   .attr("x1", function(d){ return xScale(d.Date) + 0.25*w/data.length; })
-		   .attr("x2", function(d){ return xScale(d.Date) + 0.25*w/data.length; })
+		   .attr("x1", function(d){ return xScale(d.Date) + 0.25*w/prices.length; })
+		   .attr("x2", function(d){ return xScale(d.Date) + 0.25*w/prices.length; })
 		   .attr("y1", function(d){return yScale(d.High);})
 		   .attr("y2", function(d){return yScale(d.Low);})
 		   .attr("stroke", function(d){return d.Open > d.Close ? "red" : "green"; })
