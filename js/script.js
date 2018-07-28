@@ -13,28 +13,42 @@ function drawChart() {
 		w = 1190 - margin.left - margin.right,
 		h = 680 - margin.top - margin.bottom;
 		
-		var svg = d3.select("#candleChart").append("svg")
+		var svg = d3.select("#candleChart")
+					.append("svg")
 					.attr("width", w + margin.left + margin.right)
 					.attr("height", h + margin.top + margin.bottom)
 					.append("g")
 					.attr("transform", "translate(" +margin.left+ "," +margin.top+ ")");
 		
+		// Clip path to prevent shapes 'leaking' outside chart body
+/* 		svg.append("defs")
+		   .append("clipPath")
+			.attr("id", "clip")
+			.attr("transform", "translate("+-100+",0)")
+		   .append("rect")
+		    .attr("width", w)
+			.attr("height", h)
+			.attr("transform", "translate("+-100+",0)"); */
+		
+		var zoom = d3.zoom()
+					 .scaleExtent([0.75, 15000])
+					 .translateExtent([[-10000, -10000], [10000, 10000]])
+					 .on("zoom", zoomed);
+		
 		// x axis
 		var xmin = d3.min(prices.map(function(r){ return r.Date.getTime(); }));
 		var xmax = d3.max(prices.map(function(r){ return r.Date.getTime(); }));
-
 		var xScale = d3.scaleBand().domain(_.map(prices, 'Date'))
-					   .range([margin.left, w])
+					   .range([0, w])
 					   .padding(0.2)
-					   
 		var xAxis = d3.axisBottom()
 					   .scale(xScale)
 					   .tickFormat(function(d, i){ if (i % 14 == 0) {return d.getDate() + ' ' + getShortMonth(d)}});
 
-		svg.append("g")
-		   .attr("class", "axis") //Assign "axis" class
-		   .attr("transform", "translate(0," + h + ")")
-		   .call(xAxis);
+		var gX = svg.append("g")
+		   			.attr("class", "axis") //Assign "axis" class
+		   			.attr("transform", "translate(0," + h + ")")
+		   			.call(xAxis);
 		
 		// y axis
 		var ymin = d3.min(prices.map(function(r){return r.Low;}));
@@ -44,9 +58,9 @@ function drawChart() {
 					  .scale(yScale)
 				      .ticks(Math.round((ymax - ymin)/100))
 		
-		svg.append("g")
-		   .attr("class", "axis")
-		   .call(yAxis);
+		var gY = svg.append("g")
+		   			.attr("class", "axis")
+		   			.call(yAxis);
 		
 		// draw rectangles
 		svg.selectAll("rect")
@@ -72,6 +86,17 @@ function drawChart() {
 		   .attr("y1", function(d){return yScale(d.High);})
 		   .attr("y2", function(d){return yScale(d.Low);})
 		   .attr("stroke", function(d){return d.Open > d.Close ? "red" : "green"; })
+
+		function zoomed() {
+
+			gX.call(xAxis.scale(d3.event.transform.rescaleX(xScale)));
+			gY.call(yAxis.scale(d3.event.transform.rescaleY(yScale)));
+			var t = d3.event.transform, xt = t.rescaleX(xScale), yt = t.rescaleY(yScale)
+			//svg.select(".line")
+			//   .attr("d",priceSeries.x(function(d) { return xt(d.dt);})
+			//							 .y(function(d) { return yt(d.price);}));
+		};
+			  
 
 	});
 }
