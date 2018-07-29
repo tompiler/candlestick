@@ -97,6 +97,12 @@ function drawChart() {
 		
 		d3.select("#rect").call(zoom);
 
+		
+		// custom invert function
+		var invDomain = xScale.domain()
+		var invRange = xScale.range()
+		var invScale = d3.scaleQuantize().domain(invRange).range(invDomain)
+
 		function zoom(svg) {
 			const extent = [[margin.left, margin.top], [w - margin.right, h - margin.top]];
 			console.log("Zoom")
@@ -106,22 +112,29 @@ function drawChart() {
 				.translateExtent(extent)
 				.extent(extent)
 				.on("zoom", zoomed));
-			
+
 			function zoomed() {
 			  var t = d3.event.transform, yt = t.rescaleY(yScale)
-
 			  xScale.range([0, w].map(d => d3.event.transform.applyX(d)));
+
+			  leftDate = invScale(Math.abs(xScale.range()[0])/t.k)
+			  rightDate = invScale(w-Math.abs(w-xScale.range()[1])/t.k)
+
+			  filtered = _.filter(prices, d => d.Date >= leftDate && d.Date <= rightDate)
+			  minp = d3.min(filtered, d => d.Low || Infinity)
+			  maxp = d3.max(filtered, d => d.High)
+
 			  chartBody.selectAll(".candle").attr("x", d => xScale(d.Date)).attr("width", xScale.bandwidth());
 			  chartBody.selectAll(".stem").attr("x1", d => xScale(d.Date) + xScale.bandwidth()/2);
 			  chartBody.selectAll(".stem").attr("x2", d => xScale(d.Date) + xScale.bandwidth()/2);
 			  gX.call(xAxis)
 
-			  chartBody.selectAll(".candle").attr("y", d => yt(Math.max(d.Open, d.Close)));
-			  chartBody.selectAll(".candle").attr("height", d => yt(Math.min(d.Open, d.Close))-yt(Math.max(d.Open, d.Close)));
-			  chartBody.selectAll(".stem").attr("y1", d => yt(d.High));
-			  chartBody.selectAll(".stem").attr("y2", d => yt(d.Low));
+			  //chartBody.selectAll(".candle").attr("y", d => yt(Math.max(d.Open, d.Close)));
+			  //chartBody.selectAll(".candle").attr("height", d => yt(Math.min(d.Open, d.Close))-yt(Math.max(d.Open, d.Close)));
+			  //chartBody.selectAll(".stem").attr("y1", d => yt(d.High));
+			  //chartBody.selectAll(".stem").attr("y2", d => yt(d.Low));
 			  gY.call(yAxis.scale(d3.event.transform.rescaleY(yScale)));
-
+			  yScale.domain([minp, maxp]).range([h, 0])
 			}
 		}
 
