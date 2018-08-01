@@ -57,8 +57,9 @@ function drawChart(frequency) {
 
 		var xAxis = d3.axisBottom()
 					   .scale(xScale)
-					   .tickFormat(function(d, i){if (i % 100 == 0) {return d.toDateString()}});
-					   
+					   .tickValues(xScale.domain().filter(function(d,i){ 
+							return !(i%300)
+						}));
 
 
 		var gX = svg.append("g")
@@ -66,7 +67,8 @@ function drawChart(frequency) {
 					   .attr("transform", "translate(0," + h + ")")
 					   .attr("clip-path", "url(#clip)")
 					   .call(xAxis)
-					   .selectAll("text")
+					   .selectAll('.tick')
+					   .select("text")
 					   .attr("transform", "rotate(315)");
 		
 		// y axis
