@@ -4,7 +4,7 @@ function drawChart(frequency) {
 
 	d3.csv("UKX_5Mins_20180709_20180716.csv").then(function(prices) {
 
-		const candleWidth = 5
+		const candleWidth = 2
 		const months = {0 : 'Jan', 1 : 'Feb', 2 : 'Mar', 3 : 'Apr', 4 : 'May', 5 : 'Jun', 6 : 'Jul', 7 : 'Aug', 8 : 'Sep', 9 : 'Oct', 10 : 'Nov', 11 : 'Dec'}
 
 		var dateFormat = d3.timeParse("%Y-%m-%d %H:%M");
@@ -14,9 +14,9 @@ function drawChart(frequency) {
 			prices[i]['Date'] = dateFormat(prices[i]['Date'])
 		}
 
-		const margin = {top: 15, right: 65, bottom: 105, left: 50},
+		const margin = {top: 15, right: 65, bottom: 205, left: 50},
 		w = 1190 - margin.left - margin.right,
-		h = 770 - margin.top - margin.bottom;
+		h = 870 - margin.top - margin.bottom;
 		
 		var svg = d3.select("#candleChart")
 					.append("svg")
@@ -60,13 +60,15 @@ function drawChart(frequency) {
 		
 		var xAxis = d3.axisBottom()
 					   .scale(xScale)
-					   .tickValues(xScale.domain().filter(function(d,i){ 
-						return !(i%300)
+					   .tickValues(xScale.domain().filter(function(d,i){
+						//console.log(d3.zoomTransform(d3.select('#rect')))
+						return !(i%50)
 					}))
 					.tickFormat(function(d){
 						hours = d.getHours()
+						minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
 						amPM = hours < 13 ? 'am' : 'pm'
-						 return hours + ':' + d.getMinutes() + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()}
+						 return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()}
 					);
 
 
@@ -77,8 +79,9 @@ function drawChart(frequency) {
 					   .call(xAxis)
 
 		gX.selectAll(".tick text")
+		  .attr("transform", "rotate(270) translate(-70, 0)")
 		  //.select('text')
-		  .call(wrap, xScale.bandwidth());
+		  //.call(wrap, xScale.bandwidth());
 		
 		// y axis
 		var ymin = d3.min(prices.map(function(r){return r.Low;}));
@@ -137,7 +140,7 @@ function drawChart(frequency) {
 
 		d3.select("#rect").call(zoom);
 
-		console.log(d3.zoomTransform(zoom).k, prices.length);
+		console.log(d3.zoomTransform(d3.select("#rect").call(zoom)).k, prices.length);
 		
 		function dateRange(t){
 			var t = d3.event.transform
@@ -156,8 +159,8 @@ function drawChart(frequency) {
 			xScale.range([0, w].map(d => d3.event.transform.applyX(d)));
 			var handle = dateRange();
 			var currentZoom = d3.event.transform;
-			
-			filtered = _.filter(prices, d => d.Date >= handle['left'] && d.Date <= handle['right'])
+			console.log(d3.zoomTransform(zoom).k, prices.length);
+			filtered = _.filter(prices, d => d.Date >= leftDate && d.Date <= rightDate)
 			minp = d3.min(filtered, d => d.Low || Infinity)
 			maxp = d3.max(filtered, d => d.High)
 
@@ -165,14 +168,15 @@ function drawChart(frequency) {
 			chartBody.selectAll(".stem").attr("x1", d => xScale(d.Date) + xScale.bandwidth()/2);
 			chartBody.selectAll(".stem").attr("x2", d => xScale(d.Date) + xScale.bandwidth()/2);
 
-			console.log(handle['left'], handle['right']);
+			//console.log(handle['left'], handle['right']);
 			
 			var xmin = d3.min(filtered.map(function(r){ return r.Date.getTime(); }));
 			var xmax = d3.max(filtered.map(function(r){ return r.Date.getTime(); }));
 			var xScaleZ = d3.scaleBand().domain(_.map(filtered, 'Date'))
-						   .range([0, w].map(d => d3.event.transform.applyX(d)))
+						   .range([0, w])
 						   .padding(0.2)
 
+			//console.log(xScaleZ.domain())
 
 			var xAxisZ = d3.axisBottom()
 					   .scale(xScaleZ)
@@ -185,8 +189,9 @@ function drawChart(frequency) {
 					}))
 					.tickFormat(function(d){
 						hours = d.getHours()
+						minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
 						amPM = hours < 13 ? 'am' : 'pm'
-						return hours + ':' + d.getMinutes() + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()}
+						return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()}
 				    );
 
 
@@ -195,8 +200,17 @@ function drawChart(frequency) {
 			yScale.domain([minp, maxp]).range([h, 0]);
 			gY.call(yAxis.scale(d3.event.transform.rescaleY(yScale)));
 			
-			gX.selectAll(".tick text")
-		  		.call(wrap, xScale.bandwidth())
+			/* var invDomain = xScaleZ.domain()
+			var invRange = xScaleZ.range()
+			var invScale = d3.scaleQuantize().domain(invRange).range(invDomain)
+
+			leftDate = invScale(Math.abs(xScaleZ.range()[0])/t.k)
+			rightDate = invScale(w-Math.abs(w-xScaleZ.range()[1])/t.k) */
+
+			//console.log(leftDate, rightDate);
+
+			//gX.selectAll(".tick text")
+		  	//	.call(wrap, xScale.bandwidth())
 
 			//d3.zoom().on("start", console.log("Its started!"));
 			//d3.zoom().on("zoom", sleep(3000))
