@@ -3,7 +3,6 @@ function drawChart() {
 	d3.csv("UKX_5Mins_20180709_20180716.csv").then(function(prices) {
 		
 		const months = {0 : 'Jan', 1 : 'Feb', 2 : 'Mar', 3 : 'Apr', 4 : 'May', 5 : 'Jun', 6 : 'Jul', 7 : 'Aug', 8 : 'Sep', 9 : 'Oct', 10 : 'Nov', 11 : 'Dec'}
-		const candleWidth = 5
 
 		var dateFormat = d3.timeParse("%Y-%m-%d %H:%M");
 		for (var i = 0; i < prices.length; i++) {
@@ -23,20 +22,20 @@ function drawChart() {
 
 		let dates = _.map(prices, 'Date');
 		
-		var xmin = d3.min(prices.map(function(r){ return r.Date.getTime(); }));
-		var xmax = d3.max(prices.map(function(r){ return r.Date.getTime(); }));
+		var xmin = d3.min(prices.map(r => r.Date.getTime()));
+		var xmax = d3.max(prices.map(r => r.Date.getTime()));
 		var xScale = d3.scaleLinear().domain([-1, dates.length])
 						.range([0, w])
 		let xBand = d3.scaleBand().domain(d3.range(-1, dates.length)).range([0, w]).padding(0.3)
 		var xAxis = d3.axisBottom()
-					  .scale(xScale)
-					    .tickFormat(function(d, e){
-						d = dates[d]
-						hours = d.getHours()
-						minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
-						amPM = hours < 13 ? 'am' : 'pm'
-						return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
-						});
+					  			.scale(xScale)
+					    		.tickFormat(function(d) {
+									  d = dates[d]
+										hours = d.getHours()
+										minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
+										amPM = hours < 13 ? 'am' : 'pm'
+										return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
+									});
 		
 		svg.append("rect")
 					.attr("id","rect")
@@ -98,63 +97,114 @@ function drawChart() {
 		.append("rect")
 			.attr("width", w)
 			.attr("height", h)
-
+		
 		const extent = [[0, 0], [w, h]];
-
+		
 		var zoom = d3.zoom()
-		  .scaleExtent([1, 8])
+			.scaleExtent([1, 8])
 		  .translateExtent(extent)
-		  .extent(extent)
-		  .on("zoom", zoomed)
-		
-		svg.call(zoom);
-		
+			.extent(extent)
+			.on("zoom", zoomed);
+			
+		svg.call(zoom)
+
+		currentQueue = Queue({'label' : "X", 'tx' : d3.zoomIdentity, 'ty' : d3.zoomIdentity})
+		currentQueue = Queue({'label' : "Y", 'tx' : d3.zoomIdentity, 'ty' : d3.zoomIdentity})
+		console.log(currentQueue)
+
 		function zoomed() {
 			if (d3.event.transform.k < 1) {
 				d3.event.transform.k = 1
 				return
-			  }
+			}
+			
 			var t = d3.event.transform;
-
-			gX.call(
-				d3.axisBottom(d3.event.transform.rescaleX(xScale)).tickFormat((d, e, target) => {
-				 if (d >= 0 && d <= dates.length-1) {
-					d = dates[d]
-					
-					hours = d.getHours()
-					minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
-					amPM = hours < 13 ? 'am' : 'pm'
-					return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
-				 }
+			
+			let hideTicksWithoutLabel = function() {
+				d3.selectAll('.xAxis .tick text').each(function(d){
+					if(this.innerHTML === '') {
+					this.parentNode.style.display = 'none'
+					}
 				})
-			  )
-
-			hideTicksWithoutLabel()
+			}
 			
-			candles.attr("x", (d, i) => d3.event.transform.rescaleX(xScale)(i) - (xBand.bandwidth()*d3.event.transform.k)/2)
-				   //.attr("y", (d) => d3.event.transform.rescaleY(yScale)(Math.max(d.Open, d.Close)))
-				   .attr("width", xBand.bandwidth()*d3.event.transform.k);
-			chartBody.selectAll(".stem").attr("x1", (d, i) => d3.event.transform.rescaleX(xScale)(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
-			chartBody.selectAll(".stem").attr("x2", (d, i) => d3.event.transform.rescaleX(xScale)(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
-			//chartBody.selectAll(".stem").attr("y1", (d, i) => d3.event.transform.rescaleY(yScale)(d.High));
-			//chartBody.selectAll(".stem").attr("y2", (d, i) => d3.event.transform.rescaleY(yScale)(d.Low));
+			// If the shift key is not pressed
+			if (!d3.event.sourceEvent.shiftKey) {
+				currentQueue = Queue({'label' : "X", 'tx' : t})
+				console.log(currentQueue[0].label, currentQueue[1].label, currentQueue[0].label === currentQueue[1].label)
+				console.log(currentQueue)
+				if (currentQueue[0].label !== currentQueue[1].label) {
+					console.log("Shift Up")
+					t = window.queueAr[0].tx
+				}
+				gX.call(
+					d3.axisBottom(t.rescaleX(xScale)).tickFormat((d, e, target) => {
+							if (d >= 0 && d <= dates.length-1) {
+						d = dates[d]
+						
+						hours = d.getHours()
+						minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
+						amPM = hours < 13 ? 'am' : 'pm'
+						return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
+						}
+					})
+				)
 
-			gX.selectAll(".tick text")
-			  .call(wrap, xBand.bandwidth())
-			
-			//yScale.domain([ymin, ymax]).range([h, 0]);
-			//gY.call(yAxis.scale(t.rescaleY(yScale)));
+				candles.attr("x", (d, i) => t.rescaleX(xScale)(i) - (xBand.bandwidth()*t.k)/2)
+								.attr("width", xBand.bandwidth()*t.k);
+				stems.attr("x1", (d, i) => t.rescaleX(xScale)(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
+				stems.attr("x2", (d, i) => t.rescaleX(xScale)(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
+
+				hideTicksWithoutLabel();
+
+				gX.selectAll(".tick text")
+				.call(wrap, xBand.bandwidth())
+			} else { // if the shift key is pressed
+				//currentQueue = Queue()
+				//console.log(t.y - window.queueAr[1].ty)
+				currentQueue = Queue({'label' : "Y", 'ty' : t})
+				console.log(currentQueue[0].label, currentQueue[1].label)
+				console.log(currentQueue)
+				if (currentQueue[0].label !== currentQueue[1].label) {
+					console.log("Shift Down")
+					console.log(t, window.queueAr[0].ty)
+					t = window.queueAr[0].ty
+				}
+				window.queueAr[1].ty.y = (window.queueAr[1].ty.y - window.queueAr[0].ty.y)
+				candles.attr("y", (d) => t.rescaleY(yScale)(Math.max(d.Open, d.Close)))
+								.attr("height",  d => (d.Open === d.Close) ? 1 : t.rescaleY(yScale)(Math.min(d.Open, d.Close))-t.rescaleY(yScale)(Math.max(d.Open, d.Close)));
+				stems.attr("y1", (d) => t.rescaleY(yScale)(d.High));
+				stems.attr("y2", (d) => t.rescaleY(yScale)(d.Low));
+				t.rescaleY(yScale).domain([ymin, ymax]).range([h, 0]);
+				gY.call(yAxis.scale(t.rescaleY(yScale)));
+				
+
+			};
 
 		}
-
-		let hideTicksWithoutLabel = function() {
-			d3.selectAll('.xAxis .tick text').each(function(d){
-			  if(this.innerHTML === '') {
-				this.parentNode.style.display = 'none'
-			  }
-			})
-		  }
 	});
+}
+
+function Queue(item) {
+	if (!arguments.length) {
+		return window.queueAr
+	}
+	//console.log(window.queueAr)
+	if (!item.hasOwnProperty('tx')) {
+		item["tx"] = window.queueAr[0].tx
+	}
+	if (!item.hasOwnProperty('ty')) {
+		item["ty"] = window.queueAr[0].ty
+	}
+	if (window.queueAr === undefined) {
+		window.queueAr = [item]
+	} else {
+		window.queueAr.push(item)
+		if (window.queueAr.length > 2) {
+			window.queueAr.shift()
+		}
+	}
+	return window.queueAr
 }
 
 function wrap(text, width) {
