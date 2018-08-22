@@ -1,3 +1,4 @@
+
 function drawChart() {
 
 	d3.csv("UKX_5Mins_20180709_20180716.csv").then(function(prices) {
@@ -26,6 +27,7 @@ function drawChart() {
 		var xmax = d3.max(prices.map(r => r.Date.getTime()));
 		var xScale = d3.scaleLinear().domain([-1, dates.length])
 						.range([0, w])
+		var xDateScale = d3.scaleQuantize().domain([0, dates.length]).range(dates)
 		let xBand = d3.scaleBand().domain(d3.range(-1, dates.length)).range([0, w]).padding(0.3)
 		var xAxis = d3.axisBottom()
 					  			.scale(xScale)
@@ -100,17 +102,25 @@ function drawChart() {
 		
 		const extent = [[0, 0], [w, h]];
 		
-		var zoom = d3.zoom()
-			.scaleExtent([1, 8])
-		  .translateExtent(extent)
-			.extent(extent)
-			.on("zoom", zoomed);
-			
-		svg.call(zoom)
 
-		currentQueue = Queue({'label' : "X", 'tx' : d3.zoomIdentity, 'ty' : d3.zoomIdentity})
-		currentQueue = Queue({'label' : "Y", 'tx' : d3.zoomIdentity, 'ty' : d3.zoomIdentity})
-		console.log(currentQueue)
+		var resizeTimer;
+
+		var zoom = d3.zoom()
+		  .scaleExtent([1, 20])
+		  .translateExtent(extent)
+		  .extent(extent)
+		  .scaleLock(() => {
+			if (d3.event.shiftKey) {
+				return [true, false];
+			} else {
+				return [false, true];
+			}
+		  })
+		  .on("zoom", zoomed)
+		  .on('zoom.end', zoomend);
+		
+
+		svg.call(zoom)
 
 		function zoomed() {
 			if (d3.event.transform.k < 1) {
@@ -119,7 +129,9 @@ function drawChart() {
 			}
 			
 			var t = d3.event.transform;
-			
+			let xScaleZ = t.rescaleX(xScale);
+			let yScaleZ = t.rescaleY(yScale);
+
 			let hideTicksWithoutLabel = function() {
 				d3.selectAll('.xAxis .tick text').each(function(d){
 					if(this.innerHTML === '') {
@@ -127,85 +139,101 @@ function drawChart() {
 					}
 				})
 			}
+
+			xmin = xScaleZ.domain()[0]
+			xmax = xScaleZ.domain()[1]
+			xmin = new Date(xDateScale(Math.floor(xmin)))
+			xmax = new Date(xDateScale(Math.floor(xmax)))
+
+			//console.log(xmin, xmax)
+
+			var minP, maxP;
+			var filtered = _.filter(prices, d => ((d.Date >= xmin) && (d.Date <= xmax)))
+			//console.log(filtered)
+
+			minP = d3.max(filtered, d => d.Low)
+			maxP = d3.max(filtered, d => d.High)
+
+			//console.log(minP, maxP)
 			
-			// If the shift key is not pressed
-			if (!d3.event.sourceEvent.shiftKey) {
-				currentQueue = Queue({'label' : "X", 'tx' : t})
-				console.log(currentQueue[0].label, currentQueue[1].label, currentQueue[0].label === currentQueue[1].label)
-				console.log(currentQueue)
-				if (currentQueue[0].label !== currentQueue[1].label) {
-					console.log("Shift Up")
-					t = window.queueAr[0].tx
-				}
-				gX.call(
-					d3.axisBottom(t.rescaleX(xScale)).tickFormat((d, e, target) => {
-							if (d >= 0 && d <= dates.length-1) {
-						d = dates[d]
-						
-						hours = d.getHours()
-						minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
-						amPM = hours < 13 ? 'am' : 'pm'
-						return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
-						}
-					})
-				)
+			setTimeout(function () {
+				//console.log("Did this")
+				yScaleZ.domain([minP, maxP])
+			}, 3000);
 
-				candles.attr("x", (d, i) => t.rescaleX(xScale)(i) - (xBand.bandwidth()*t.k)/2)
-								.attr("width", xBand.bandwidth()*t.k);
-				stems.attr("x1", (d, i) => t.rescaleX(xScale)(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
-				stems.attr("x2", (d, i) => t.rescaleX(xScale)(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
+			gX.call(
+				d3.axisBottom(xScaleZ).tickFormat((d, e, target) => {
+						if (d >= 0 && d <= dates.length-1) {
+					d = dates[d]
+					
+					hours = d.getHours()
+					minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
+					amPM = hours < 13 ? 'am' : 'pm'
+					return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
+					}
+				})
+			)
 
-				hideTicksWithoutLabel();
+			candles.attr("x", (d, i) => xScaleZ(i) - (xBand.bandwidth()*t.k)/2)
+							.attr("width", xBand.bandwidth()*t.k);
+			stems.attr("x1", (d, i) => xScaleZ(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
+			stems.attr("x2", (d, i) => xScaleZ(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
 
-				gX.selectAll(".tick text")
-				.call(wrap, xBand.bandwidth())
-			} else { // if the shift key is pressed
-				//currentQueue = Queue()
-				//console.log(t.y - window.queueAr[1].ty)
-				currentQueue = Queue({'label' : "Y", 'ty' : t})
-				console.log(currentQueue[0].label, currentQueue[1].label)
-				console.log(currentQueue)
-				if (currentQueue[0].label !== currentQueue[1].label) {
-					console.log("Shift Down")
-					console.log(t, window.queueAr[0].ty)
-					t = window.queueAr[0].ty
-				}
-				window.queueAr[1].ty.y = (window.queueAr[1].ty.y - window.queueAr[0].ty.y)
-				candles.attr("y", (d) => t.rescaleY(yScale)(Math.max(d.Open, d.Close)))
-								.attr("height",  d => (d.Open === d.Close) ? 1 : t.rescaleY(yScale)(Math.min(d.Open, d.Close))-t.rescaleY(yScale)(Math.max(d.Open, d.Close)));
-				stems.attr("y1", (d) => t.rescaleY(yScale)(d.High));
-				stems.attr("y2", (d) => t.rescaleY(yScale)(d.Low));
-				t.rescaleY(yScale).domain([ymin, ymax]).range([h, 0]);
-				gY.call(yAxis.scale(t.rescaleY(yScale)));
-				
+			hideTicksWithoutLabel();
 
-			};
+			gX.selectAll(".tick text")
+			.call(wrap, xBand.bandwidth())
 
+		
+			candles.attr("y", (d) => yScaleZ(Math.max(d.Open, d.Close)))
+				   .attr("height",  d => (d.Open === d.Close) ? 1 : yScaleZ(Math.min(d.Open, d.Close))-yScaleZ(Math.max(d.Open, d.Close)));
+			stems.attr("y1", (d) => yScaleZ(d.High));
+			stems.attr("y2", (d) => yScaleZ(d.Low));
+			//yScaleZ.domain([ymin, ymax]).range([h, 0]);
+			//gY.call(d3.axisLeft().scale(yScaleZ));
+
+		}
+
+		function zoomend() {
+			var t = d3.event.transform;
+			let xScaleZ = t.rescaleX(xScale);
+			
+			clearTimeout(resizeTimer)
+			resizeTimer = setTimeout(function() {
+			console.log(t);
+
+			xmin = xScaleZ.domain()[0]
+			xmax = xScaleZ.domain()[1]
+			xmin = new Date(xDateScale(Math.floor(xmin)))
+			xmax = new Date(xDateScale(Math.floor(xmax)))
+
+
+			var minP, maxP;
+			var filtered = _.filter(prices, d => ((d.Date >= xmin) && (d.Date <= xmax)))
+			//console.log(filtered)
+			let yScaleZ = t.rescaleY(yScale);
+			minP = d3.min(filtered, d => d.Low)
+			maxP = d3.max(filtered, d => d.High)
+
+			buffer = Math.floor((maxP - minP) * 0.1)
+			yScale.domain([minP - buffer, maxP + buffer])
+
+			candles.transition()
+				   .duration(800)
+				   .attr("y", (d) => yScale(Math.max(d.Open, d.Close)))
+				   .attr("height",  d => (d.Open === d.Close) ? 1 : yScale(Math.min(d.Open, d.Close))-yScale(Math.max(d.Open, d.Close)));
+				   
+			stems.transition().duration(800)
+				 .attr("y1", (d) => yScale(d.High))
+				 .attr("y2", (d) => yScale(d.Low))
+
+			}, 500)
+
+			
 		}
 	});
 }
 
-function Queue(item) {
-	if (!arguments.length) {
-		return window.queueAr
-	}
-	//console.log(window.queueAr)
-	if (!item.hasOwnProperty('tx')) {
-		item["tx"] = window.queueAr[0].tx
-	}
-	if (!item.hasOwnProperty('ty')) {
-		item["ty"] = window.queueAr[0].ty
-	}
-	if (window.queueAr === undefined) {
-		window.queueAr = [item]
-	} else {
-		window.queueAr.push(item)
-		if (window.queueAr.length > 2) {
-			window.queueAr.shift()
-		}
-	}
-	return window.queueAr
-}
 
 function wrap(text, width) {
 	text.each(function() {
