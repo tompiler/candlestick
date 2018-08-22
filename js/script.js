@@ -1,4 +1,3 @@
-
 function drawChart() {
 
 	d3.csv("UKX_5Mins_20180709_20180716.csv").then(function(prices) {
@@ -94,44 +93,29 @@ function drawChart() {
 		   .attr("stroke", d => (d.Open === d.Close) ? "white" : (d.Open > d.Close) ? "red" : "green");
 		
 		svg.append("defs")
-		.append("clipPath")
-			.attr("id", "clip")
-		.append("rect")
-			.attr("width", w)
-			.attr("height", h)
+		   .append("clipPath")
+		   .attr("id", "clip")
+		   .append("rect")
+		   .attr("width", w)
+		   .attr("height", h)
 		
 		const extent = [[0, 0], [w, h]];
 		
-
 		var resizeTimer;
-
 		var zoom = d3.zoom()
-		  .scaleExtent([1, 20])
+		  .scaleExtent([1, 100])
 		  .translateExtent(extent)
 		  .extent(extent)
-		  .scaleLock(() => {
-			if (d3.event.shiftKey) {
-				return [true, false];
-			} else {
-				return [false, true];
-			}
-		  })
 		  .on("zoom", zoomed)
 		  .on('zoom.end', zoomend);
 		
-
 		svg.call(zoom)
 
 		function zoomed() {
-			if (d3.event.transform.k < 1) {
-				d3.event.transform.k = 1
-				return
-			}
 			
 			var t = d3.event.transform;
 			let xScaleZ = t.rescaleX(xScale);
-			let yScaleZ = t.rescaleY(yScale);
-
+			
 			let hideTicksWithoutLabel = function() {
 				d3.selectAll('.xAxis .tick text').each(function(d){
 					if(this.innerHTML === '') {
@@ -140,32 +124,10 @@ function drawChart() {
 				})
 			}
 
-			xmin = xScaleZ.domain()[0]
-			xmax = xScaleZ.domain()[1]
-			xmin = new Date(xDateScale(Math.floor(xmin)))
-			xmax = new Date(xDateScale(Math.floor(xmax)))
-
-			//console.log(xmin, xmax)
-
-			var minP, maxP;
-			var filtered = _.filter(prices, d => ((d.Date >= xmin) && (d.Date <= xmax)))
-			//console.log(filtered)
-
-			minP = d3.max(filtered, d => d.Low)
-			maxP = d3.max(filtered, d => d.High)
-
-			//console.log(minP, maxP)
-			
-			setTimeout(function () {
-				//console.log("Did this")
-				yScaleZ.domain([minP, maxP])
-			}, 3000);
-
 			gX.call(
 				d3.axisBottom(xScaleZ).tickFormat((d, e, target) => {
 						if (d >= 0 && d <= dates.length-1) {
 					d = dates[d]
-					
 					hours = d.getHours()
 					minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
 					amPM = hours < 13 ? 'am' : 'pm'
@@ -175,7 +137,7 @@ function drawChart() {
 			)
 
 			candles.attr("x", (d, i) => xScaleZ(i) - (xBand.bandwidth()*t.k)/2)
-							.attr("width", xBand.bandwidth()*t.k);
+				   .attr("width", xBand.bandwidth()*t.k);
 			stems.attr("x1", (d, i) => xScaleZ(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
 			stems.attr("x2", (d, i) => xScaleZ(i) - xBand.bandwidth()/2 + xBand.bandwidth()*0.5);
 
@@ -184,40 +146,23 @@ function drawChart() {
 			gX.selectAll(".tick text")
 			.call(wrap, xBand.bandwidth())
 
-		
-			candles.attr("y", (d) => yScaleZ(Math.max(d.Open, d.Close)))
-				   .attr("height",  d => (d.Open === d.Close) ? 1 : yScaleZ(Math.min(d.Open, d.Close))-yScaleZ(Math.max(d.Open, d.Close)));
-			stems.attr("y1", (d) => yScaleZ(d.High));
-			stems.attr("y2", (d) => yScaleZ(d.Low));
-			//yScaleZ.domain([ymin, ymax]).range([h, 0]);
-			//gY.call(d3.axisLeft().scale(yScaleZ));
-
 		}
 
 		function zoomend() {
 			var t = d3.event.transform;
 			let xScaleZ = t.rescaleX(xScale);
-			
+			console.log(t);
 			clearTimeout(resizeTimer)
 			resizeTimer = setTimeout(function() {
-			console.log(t);
 
-			xmin = xScaleZ.domain()[0]
-			xmax = xScaleZ.domain()[1]
-			xmin = new Date(xDateScale(Math.floor(xmin)))
-			xmax = new Date(xDateScale(Math.floor(xmax)))
+			var xmin = new Date(xDateScale(Math.floor(xScaleZ.domain()[0])))
+				xmax = new Date(xDateScale(Math.floor(xScaleZ.domain()[1])))
+				filtered = _.filter(prices, d => ((d.Date >= xmin) && (d.Date <= xmax)))
+				minP = +d3.min(filtered, d => d.Low)
+				maxP = +d3.max(filtered, d => d.High)
+				buffer = Math.floor((maxP - minP) * 0.1)
 
-
-			var minP, maxP;
-			var filtered = _.filter(prices, d => ((d.Date >= xmin) && (d.Date <= xmax)))
-			//console.log(filtered)
-			let yScaleZ = t.rescaleY(yScale);
-			minP = d3.min(filtered, d => d.Low)
-			maxP = d3.max(filtered, d => d.High)
-
-			buffer = Math.floor((maxP - minP) * 0.1)
 			yScale.domain([minP - buffer, maxP + buffer])
-
 			candles.transition()
 				   .duration(800)
 				   .attr("y", (d) => yScale(Math.max(d.Open, d.Close)))
@@ -226,14 +171,14 @@ function drawChart() {
 			stems.transition().duration(800)
 				 .attr("y1", (d) => yScale(d.High))
 				 .attr("y2", (d) => yScale(d.Low))
+			
+			gY.transition().duration(800).call(d3.axisLeft().scale(yScale));
 
 			}, 500)
-
 			
 		}
 	});
 }
-
 
 function wrap(text, width) {
 	text.each(function() {
