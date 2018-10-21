@@ -58,18 +58,18 @@
 .axis path,
 .axis line {
     fill: none;
-    stroke: #b3b3ff;
+    stroke: #000000;
     shape-rendering: crispEdges;
 }
 
 .axis text {
     font-family: 'Open Sans', sans-serif;
     font-size: 11px;
-    fill: #b3b3ff;
+    fill: #000000;
 }
 
 /* d3 candle stick end */
 
 body {
-  background-color: #00061a;
+  background-color: #ffffff;
 }

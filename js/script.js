@@ -3,6 +3,8 @@ function drawChart() {
 	d3.csv("UKX_5Mins_20180709_20180716.csv").then(function(prices) {
 		
 		const months = {0 : 'Jan', 1 : 'Feb', 2 : 'Mar', 3 : 'Apr', 4 : 'May', 5 : 'Jun', 6 : 'Jul', 7 : 'Aug', 8 : 'Sep', 9 : 'Oct', 10 : 'Nov', 11 : 'Dec'}
+		
+		console.log(prices)
 
 		var dateFormat = d3.timeParse("%Y-%m-%d %H:%M");
 		for (var i = 0; i < prices.length; i++) {
@@ -151,7 +153,7 @@ function drawChart() {
 		function zoomend() {
 			var t = d3.event.transform;
 			let xScaleZ = t.rescaleX(xScale);
-			console.log(t);
+			//console.log(t);
 			clearTimeout(resizeTimer)
 			resizeTimer = setTimeout(function() {
 
