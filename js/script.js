@@ -12,22 +12,43 @@ function drawChart() {
 			prices[i]['Date'] = dateFormat(prices[i]['Date'])
 		}
 
-		const margin = {top: 15, right: 65, bottom: 205, left: 50},
-		w = 1190 - margin.left - margin.right,
-		h = 770 - margin.top - margin.bottom;
+		const margin = {top: 15, right: 65, bottom: 235, left: 50},
+			  margin2 = {top: 680, right: 65, bottom: 80, left: 50},
+			  w = 1190 - margin.left - margin.right,
+			  h = 820 - margin.top - margin.bottom,
+			  h2 = 820 - margin2.top - margin2.bottom;
 
 		var svg = d3.select("#container")
 						.attr("width", w + margin.left + margin.right)
 						.attr("height", h + margin.top + margin.bottom)
-						.append("g")
-						.attr("transform", "translate(" +margin.left+ "," +margin.top+ ")");
+		
+		var focus = svg.append("g")
+					   .attr("transform", "translate(" +margin.left+ "," +margin.top+ ")");
 
+		var context = svg.append("g")
+						 .attr("transform", "translate(" +margin2.left+ "," +margin2.top+ ")");
+
+		var leftHandle = 0,
+			rightHandle = 1140;
+		
+		var currentExtent = [0,0]
+
+		var brush = d3.brushX()
+					  .extent([[leftHandle, 0], [rightHandle, h2]])
+					  .on("brush start", updateCurrentExtent)
+					  .on("brush end", brushed);
+		
 		let dates = _.map(prices, 'Date');
 		
 		var xmin = d3.min(prices.map(r => r.Date.getTime()));
 		var xmax = d3.max(prices.map(r => r.Date.getTime()));
 		var xScale = d3.scaleLinear().domain([-1, dates.length])
 						.range([0, w])
+		
+		var xScale2 = d3.scaleLinear()
+						.domain([-1, dates.length])
+						.range([0, w])
+
 		var xDateScale = d3.scaleQuantize().domain([0, dates.length]).range(dates)
 		let xBand = d3.scaleBand().domain(d3.range(-1, dates.length)).range([0, w]).padding(0.3)
 		var xAxis = d3.axisBottom()
@@ -40,7 +61,17 @@ function drawChart() {
 										return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
 									});
 		
-		svg.append("rect")
+		var xAxis2 = d3.axisBottom()
+					   .scale(xScale2)
+					   .tickFormat(function(d) {
+							d = dates[d]
+							hours = d.getHours()
+							minutes = (d.getMinutes()<10?'0':'') + d.getMinutes() 
+							amPM = hours < 13 ? 'am' : 'pm'
+							return hours + ':' + minutes + amPM + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear()
+						});
+
+		focus.append("rect")
 					.attr("id","rect")
 					.attr("width", w)
 					.attr("height", h)
@@ -48,7 +79,7 @@ function drawChart() {
 					.style("pointer-events", "all")
 					.attr("clip-path", "url(#clip)")
 		
-		var gX = svg.append("g")
+		var gX = focus.append("g")
 					.attr("class", "axis x-axis") //Assign "axis" class
 					.attr("transform", "translate(0," + h + ")")
 					.call(xAxis)
@@ -56,17 +87,31 @@ function drawChart() {
 		gX.selectAll(".tick text")
 		  .call(wrap, xBand.bandwidth())
 
+		var gX2 = context.append("g")
+			   .attr("class", "axis axis--x")
+			   .attr("transform", "translate(0," + h2 + ")")
+			   .call(xAxis2)
+
+		gX2.selectAll(".tick text")
+			.call(wrap, xBand.bandwidth())
+
+		context.append("g")
+			   .attr("class", "brush")
+			   .on("click", brushed)
+			   .call(brush)
+			   //.call(brush.move, [new Date()])
+
 		var ymin = d3.min(prices.map(r => r.Low));
 		var ymax = d3.max(prices.map(r => r.High));
 		var yScale = d3.scaleLinear().domain([ymin, ymax]).range([h, 0]).nice();
 		var yAxis = d3.axisLeft()
 					  .scale(yScale)
 		
-		var gY = svg.append("g")
+		var gY = focus.append("g")
 					.attr("class", "axis y-axis")
 					.call(yAxis);
 		
-		var chartBody = svg.append("g")
+		var chartBody = focus.append("g")
 					.attr("class", "chartBody")
 					.attr("clip-path", "url(#clip)");
 		
@@ -94,12 +139,72 @@ function drawChart() {
 		   .attr("y2", d => yScale(d.Low))
 		   .attr("stroke", d => (d.Open === d.Close) ? "white" : (d.Open > d.Close) ? "red" : "green");
 		
-		svg.append("defs")
+		focus.append("defs")
 		   .append("clipPath")
 		   .attr("id", "clip")
 		   .append("rect")
 		   .attr("width", w)
 		   .attr("height", h)
+		
+
+		function updateCurrentExtent() {
+			currentExtent = d3.brushSelection(this);
+		}
+
+		function brushed() {
+			if (d3.event.sourceEvent && d3.event.sourceEvent.type === "zoom") return; // ignore brush-by-zoom
+			var s = d3.event.selection;
+			
+			//console.log(x(new Date(2001,0,1))); // 1 year in terms of x
+		   
+			var p = currentExtent,
+				xYear = xScale2(new Date(2001,0,1)),
+				left,
+				right;
+			
+			if (d3.event.selection && s[1] - s[0] >= xYear) {
+			  if (p[0] == s[0] && p[1] < s[1]) { // case where right handle is extended
+				if (s[1] >= width) {
+				  left = width - xYear
+				  right = width
+				  s = [left, right];
+				}
+				else {
+				  left = s[1] - xYear/2
+				  right = s[1] + xYear/2
+				  s = [left, right];
+				}
+			  }
+			  else if (p[1] == s[1] && p[0] > s[0]) { // case where left handle is extended
+				if (s[0] <= 0) {
+				  s = [0, xYear];
+				}
+				else {
+				  s = [s[0] - xYear/2, s[0] + xYear/2]
+				}
+			  }
+			}
+			
+			if (!d3.event.selection){ // if no selection took place and the brush was just clicked
+			  var mouse = d3.mouse(this)[0];
+			  if (mouse < xYear/2) {
+				s = [0,xYear];
+			  } else if (mouse + xYear/2 > width) {
+				s = [width-xYear, width];
+			  }
+			  else {
+			  s = [d3.mouse(this)[0]-xYear/2, d3.mouse(this)[0]+xYear/2];
+			  }
+			}
+			
+			//xScale.domain(s.map(xScale2.invert, xScale2));
+			//focus.select(".line").attr("d", line);
+			focus.select(".axis--x").call(xAxis);
+			svg.select(".zoom").call(zoom.transform, d3.zoomIdentity
+													   .scale(w / (s[1] - s[0]))
+													   .translate(-s[0], 0));
+		}
+	  
 		
 		const extent = [[0, 0], [w, h]];
 		
@@ -111,7 +216,7 @@ function drawChart() {
 		  .on("zoom", zoomed)
 		  .on('zoom.end', zoomend);
 		
-		svg.call(zoom)
+		focus.call(zoom)
 
 		function zoomed() {
 			
@@ -149,7 +254,7 @@ function drawChart() {
 			.call(wrap, xBand.bandwidth())
 
 		}
-
+		
 		function zoomend() {
 			var t = d3.event.transform;
 			let xScaleZ = t.rescaleX(xScale);
